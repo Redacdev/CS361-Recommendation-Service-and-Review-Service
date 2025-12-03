@@ -4,9 +4,9 @@ A recommendation microservice and a reviews microservice.
 This document provides details on the implementation, integration, and functionality of two independent microservices: the Review/Moderation Service and the Recommendation Service.
 ## 1. The Review/Moderation Service
 This service manages user-submitted reviews for video games, storing them in a dedicated database and applying a simple moderation filter.
-    Port: 5002
-    Database: reviews.db (SQLite)
-    Key Files: review_service.py: Contains the Flask application, SQLAlchemy model, moderation logic, and API endpoints.
+   - Port: 5002
+   - Database: reviews.db (SQLite)
+   - Key Files: review_service.py: Contains the Flask application, SQLAlchemy model, moderation logic, and API endpoints.
 
 ### Implementation Details
 The service defines a Review model with a status column (pending, approved, rejected). A simple built-in function checks incoming comments for inappropriate words.
@@ -38,11 +38,11 @@ Integration Example (Python Client):
 
 ## 2. The Recommendation Service
 This service provides game recommendations based on content-based filtering (cosine similarity using TF-IDF vectors). The machine learning model is loaded into memory only once when the service starts up.
-      Port: 5004
-      Data Source: cleaned_games.csv
-      Key Files:
-          recommendation_service_app.py: Flask application that wraps the core logic in an API.
-          recommendation_service.py: The underlying class containing the pandas/sklearn logic.
+    - Port: 5004
+    - Data Source: cleaned_games.csv
+    - Key Files:
+        - recommendation_service_app.py: Flask application that wraps the core logic in an API.
+        - recommendation_service.py: The underlying class containing the pandas/sklearn logic.
 
 ### Implementation Details
 The separation of this service allows the heavy processing power required to load the ML model and dataframes to be isolated from the main web application, improving frontend performance and scalability.
