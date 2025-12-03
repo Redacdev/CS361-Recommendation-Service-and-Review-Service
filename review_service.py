@@ -11,7 +11,7 @@ review_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 review_db = SQLAlchemy(review_app)
 
 # A simple list for demonstration purposes
-BAD_WORDS = {}
+BAD_WORDS = {"fuck","shit"}
 
 def check_for_profanity(text):
     """Checks if the text contains any words from the BAD_WORDS set."""
