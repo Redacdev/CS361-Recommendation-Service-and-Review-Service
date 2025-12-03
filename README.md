@@ -1,4 +1,4 @@
-# Microservice-pool
+# Recommendation Service and Review Service
 A recommendation microservice and a reviews microservice.
 
 ### Note: The .csv file used in the example and applied in the service was from a dataset on Kaggle which I applied some pre-processing to. For recommendation service please verify column names with your dataset and make appropriate updates.
