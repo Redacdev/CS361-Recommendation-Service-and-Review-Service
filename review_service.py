@@ -13,6 +13,7 @@ review_db = SQLAlchemy(review_app)
 # A simple list for demonstration purposes
 BAD_WORDS = {"fuck","shit"}
 
+# Profanity checker
 def check_for_profanity(text):
     """Checks if the text contains any words from the BAD_WORDS set."""
     words = text.lower().split()
@@ -43,6 +44,7 @@ class Review(review_db.Model):
 
 # --- Service API Endpoints ---
 
+# Endpoint to add a review to the DB, setting it as pending if it has profanity
 @review_app.route('/api/reviews/add', methods=['POST'])
 def add_review():
     """Adds a new review to the database, applying a moderation check."""
@@ -54,8 +56,8 @@ def add_review():
     # Determine the status based on content
     review_status = 'approved' # Default to approved
     if check_for_profanity(data['comment']):
-        review_status = 'rejected'
-        print(f"Review rejected due to inappropriate content: '{data['comment']}'")
+        review_status = 'pending'
+        print(f"Review held for moderation due to profanity: '{data['comment']}'")
 
     new_review = Review(
         user_id=data['user_id'],
@@ -67,9 +69,83 @@ def add_review():
     review_db.session.add(new_review)
     review_db.session.commit()
 
-    message = "Review submitted successfully and is approved." if review_status == 'approved' else "Review submitted but was rejected due to content policy."
+    message = (
+        "Review submitted successfully and is approved."
+        if review_status == 'approved'
+        else "Review submitted and is pending moderation."
+    )
     return jsonify({'message': message, 'id': new_review.id, 'status': review_status}), 201
 
+# Endpoint to retrieve a review by its ID
+@review_app.route('/api/reviews/id/<int:review_id>', methods=['GET'])
+def get_review_by_id(review_id):
+    """Retrieve a single review by its ID, regardless of status."""
+    review = Review.query.get(review_id)
+
+    if review is None:
+        return jsonify({
+            "id": review_id,
+            "error": "No review exists with this ID."
+        }), 404
+
+    return jsonify(review.to_dict()), 200
+
+# Endpoint to retrieve all reviews, or approved reviews, or pending reviews, or rejected
+#  reviews (all choices order by most recent timestamp).
+@review_app.route('/api/reviews/status/<status>/<int:num_of_reviews>', methods=['GET'])
+def get_reviews_by_status(status, num_of_reviews):
+    """Building the desired query."""
+    query = Review.query.order_by(Review.timestamp.desc())
+
+    if status != "all":
+        query = query.filter_by(status=status)
+    
+    """Queries the whole table for relavent rows."""
+    reviews = query.limit(num_of_reviews).all()
+    return jsonify([review.to_dict() for review in reviews]), 200
+
+# Endpoint to change a review status that is pending or approved to rejected by ID.
+@review_app.route('/api/reviews/reject/<int:review_id>', methods=['PUT'])
+def reject_pending_review(review_id):
+    """Change a review's status from pending to rejected by ID."""
+    review = Review.query.get(review_id)
+    if review is None:
+        return jsonify({"error": f"No review exists with the following ID: {review_id}"}), 404
+    
+    if review.status != "pending" and review.status != "approved":
+        return jsonify({"error": f"Review {review_id} is not pending (or accidentally approved); current status is '{review.status}'"}), 400
+    
+    review.status = "rejected"
+    review_db.session.commit()
+    return jsonify({"message": f"Review {review_id} status changed to rejected"}), 200
+
+# Endpoint to delete a review from the DB by ID.
+@review_app.route('/api/reviews/delete/<int:review_id>', methods=['DELETE'])
+def delete_review(review_id):
+    """Delete a single review by its ID."""
+    review = Review.query.get(review_id)
+    if review is None:
+        return jsonify({"error": f"No review exists with the following ID: {review_id}"}), 404
+    
+    review_db.session.delete(review)
+    review_db.session.commit()
+    return jsonify({"message": f"Review {review_id} deleted"}), 200
+
+
+# Endpoint to delete all reviews where status == 'rejected'.
+@review_app.route('/api/reviews/delete/rejected', methods=['DELETE'])
+def delete_rejected_reviews():
+    """Delete all reviews that have status 'rejected'."""
+    rejected_reviews = Review.query.filter_by(status="rejected").all()
+    if not rejected_reviews:
+        return jsonify({"message": "No rejected reviews found, so nothing has been deleted"}), 200
+    
+    for review in rejected_reviews:
+        review_db.session.delete(review)
+    review_db.session.commit()
+    return jsonify({"message": f"Deleted {len(rejected_reviews)} rejected reviews"}), 200
+
+# (Anthony's) Endpoint to retrieve all approved reviews of a certain title by most recent timestamp
 @review_app.route('/api/reviews/<game_title>', methods=['GET'])
 def get_reviews(game_title):
     """Retrieves only *approved* reviews for a specific game title."""
